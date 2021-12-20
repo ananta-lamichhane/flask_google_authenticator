@@ -13,3 +13,7 @@ To install
 
 ## Note
 Web deployment is not included in this implementation. However, it should be fairly similar to any other flask web application.
+
+## Sources
+
+The code to google auth adapted from Graham Mitchell's git. https://github.com/grahammitchell/google-authenticator
