@@ -1,3 +1,7 @@
-.get_codes{
+.get_codes {
     text-align: center;
+}
+
+.progress-bar {
+    transition: width 1s linear !important;
 }
