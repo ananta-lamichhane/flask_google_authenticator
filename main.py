@@ -42,8 +42,10 @@ def main():
 		secrets = json.load(f)
 	for label, key in sorted(list(secrets.items())):
 		#kp.append(dict({label : get_totp_token(key)}))
-		kp[label] = get_totp_token(key)[0]
+		code, time_1= get_totp_token(key)
+		kp[label] = {'code': code, 'time':time_1}
 		print("{}:\t{}".format(label, get_totp_token(key)))
+	print(kp)
 	return kp
 
 
@@ -54,7 +56,7 @@ def index():
 	all_kps = main()
 	if request.args.get('api') == "true":
 		return jsonify(all_kps)
-		print("api request")
+
 	return render_template('base.html',kps= all_kps)
 
 if __name__ == "__main__":
