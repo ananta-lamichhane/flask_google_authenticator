@@ -1,63 +1,74 @@
-import hmac, base64, struct, hashlib, time, json, os
-from flask import Flask, render_template, jsonify, request
+
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+from time import strftime, localtime
+from authlib.integrations.flask_client import OAuth
+from functools import wraps
+from utils.totp_functions import create_2fa_kps
+import os
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'email' not in session:
+            return redirect(url_for('index'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
-def get_hotp_token(secret, intervals_no):
-	"""This is where the magic happens."""
-	key = base64.b32decode(normalize(secret), True) # True is to fold lower into uppercase
-	msg = struct.pack(">Q", intervals_no)
-	h = bytearray(hmac.new(key, msg, hashlib.sha1).digest())
-	o = h[19] & 15
-	h = str((struct.unpack(">I", h[o:o+4])[0] & 0x7fffffff) % 1000000)
-	return prefix0(h)
 
 
-def get_totp_token(secret):
-	"""The TOTP token is just a HOTP token seeded with every 30 seconds."""
-	intervals_no = int(time.time()) // 30
-
-	return get_hotp_token(secret, intervals_no), int(time.time())
-
-
-def normalize(key):
-	"""Normalizes secret by removing spaces and padding with = to a multiple of 8"""
-	k2 = key.strip().replace(' ','')
-	# k2 = k2.upper()	# skipped b/c b32decode has a foldcase argument
-	if len(k2)%8 != 0:
-		k2 += '='*(8-len(k2)%8)
-	return k2
-
-
-def prefix0(h):
-	"""Prefixes code with leading zeros if missing."""
-	if len(h) < 6:
-		h = '0'*(6-len(h)) + h
-	return h
-
-
-def main():
-	kp = {}
-	rel = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-	with open(os.path.join(rel,'secrets.json'), 'r') as f:
-		secrets = json.load(f)
-	for label, key in sorted(list(secrets.items())):
-		#kp.append(dict({label : get_totp_token(key)}))
-		code, time_1= get_totp_token(key)
-		kp[label] = {'code': code, 'time':time_1}
-		print("{}:\t{}".format(label, get_totp_token(key)))
-	print(kp)
-	return kp
 
 
 app = Flask(__name__)
 
+app.secret_key = os.urandom(24)
+
+# OAuth Configuration
+oauth = OAuth(app)
+google = oauth.register(
+    name='google',
+    client_id= GOOGLE_CLIENT_ID, 
+    client_secret= GOOGLE_CLIENT_SECRET, 
+	server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+    client_kwargs={'scope': 'openid profile email'},
+)
+
+
 @app.route('/', methods=['GET', 'POST'])
+
 def index():
-	all_kps = main()
+
+	return render_template('base.html')
+
+@app.route('/login')
+def login():
+    return google.authorize_redirect(url_for('authorize', _external=True))
+
+@app.route('/login/callback')
+def authorize():
+    token = google.authorize_access_token()
+    resp = resp = google.get('https://www.googleapis.com/oauth2/v3/userinfo')
+    user_info = resp.json()
+    session['email'] = user_info['email']
+    return redirect('/')
+
+@app.route('/logout')
+def logout():
+    session.pop('email', None)
+    return redirect('/')
+
+@app.route('/2fa', methods=['GET', 'POST'])
+@login_required
+def get_2fa():
+	secrets_path = "config/secrets.json"
+	all_kps = create_2fa_kps(secrets_path)
 	if request.args.get('api') == "true":
 		return jsonify(all_kps)
 
-	return render_template('base.html',kps= all_kps)
+	return render_template('two_fa.html',kps= all_kps)
 
 if __name__ == "__main__":
 	app.run(debug=True)
