@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Table Page{% endblock %}
+
+{% block content %}
+<h2 class="get_codes">2FA Codes.</h2>
+<div class="progress" id="progress-container">
+    <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 100%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+    
+  
+    
+  </div>
+
+<table>
+    <table class="table">
+<thead>
+  <tr>
+    <th scope="col">#</th>
+    <th scope="col">Account</th>
+    <th scope="col">Code</th>
+
+  </tr>
+</thead>
+<tbody>
+
+{% for key, value in kps.items()%}
+<tr>
+      <th> {{loop.index}}</th>
+      <td id="account-name{{loop.index}}">{{key}}</td>
+      <td id="code{{loop.index}}">{{value.code}}</td>
+</tr>
+
+{% endfor %}
+
+
+
+
+</table>
+
+
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+<script>
+    $(document).ready(function() {
+        // Define the function you want to run every second
+        function myFunction() {
+
+            var kps = '{{ kps.values()|list|first|tojson|safe }}'
+            var expiry = parseInt(JSON.parse(kps).expiry)
+            var seconds = parseInt(new Date().getTime() / 1000);
+            console.log("seconds = "+seconds+ " expiry= "+expiry )
+            var currentProgress = $('#progress-bar').attr('aria-valuenow');
+            var maxProgress = $('#progress-bar').attr('aria-valuemax');
+            var newProgress = parseInt((expiry-seconds) * 3.33)
+            console.log(newProgress)
+            if(newProgress === 0){
+              location.reload()
+            }
+
+            $('#progress-bar').css('width', newProgress + '%').attr('aria-valuenow', newProgress);
+            // Your jQuery code here
+        }
+
+        // Set interval to run the function every second (1000 milliseconds)
+        setInterval(myFunction, 1000);
+    });
+</script>
+{% endblock %}

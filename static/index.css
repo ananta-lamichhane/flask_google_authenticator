@@ -5,3 +5,6 @@
 .progress-bar {
     transition: width 1s linear !important;
 }
+body {
+   margin-left: 20px; 
+}
