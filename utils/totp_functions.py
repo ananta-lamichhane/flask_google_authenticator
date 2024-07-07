@@ -1,5 +1,5 @@
 import hmac, base64, struct, hashlib, time, json, os
-
+import json
 
 def get_hotp_token(secret, intervals_no):
 	"""This is where the magic happens."""
@@ -47,3 +47,32 @@ def create_2fa_kps(secrets_path):
 		print("{}:\t{}".format(label, get_totp_token(key)))
 	print(kp)
 	return kp
+
+def save_new_secret(secrets_path, secret_key, label):
+    data = {}
+    try:
+        with open(secrets_path, 'r') as file:
+            data = json.load(file)
+        with open(secrets_path, 'w') as f:
+            try:
+                data[label] = text_to_base32(secret_key)
+                f.write(json.dumps(data))
+            except BaseException as e:
+                print("could not write to file")
+                return -1
+    except BaseException as e:
+        print("could not write to file 2")
+        print(f"{e}")
+
+
+def text_to_base32(text):
+    # Convert text to bytes
+    text_bytes = text.encode('utf-8')
+    
+    # Encode bytes to Base32
+    base32_bytes = base64.b32encode(text_bytes)
+    
+    # Convert bytes back to a UTF-8 string
+    base32_text = base32_bytes.decode('utf-8')
+    
+    return base32_text
