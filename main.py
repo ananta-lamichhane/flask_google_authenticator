@@ -3,7 +3,7 @@ from flask import Flask, render_template, jsonify, request, redirect, url_for, s
 from time import strftime, localtime
 from authlib.integrations.flask_client import OAuth
 from functools import wraps
-from utils.totp_functions import create_2fa_kps
+from utils.totp_functions import create_2fa_kps, save_new_secret
 import os
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
@@ -61,7 +61,7 @@ def logout():
     return redirect('/')
 
 @app.route('/2fa', methods=['GET', 'POST'])
-@login_required
+#@login_required
 def get_2fa():
 	secrets_path = "config/secrets.json"
 	all_kps = create_2fa_kps(secrets_path)
@@ -70,6 +70,17 @@ def get_2fa():
 
 	return render_template('two_fa.html',kps= all_kps)
 
+@app.route('/qr', methods=['GET', 'POST'])
+#@login_required
+def qr():
+	if request.method == "POST":
+		secrets_path = "config/secrets.json"
+		qr_data = request.json.get('qr_data')
+		processed_result = f"Received QR code data: {qr_data}"
+		save_new_secret(secrets_path, qr_data, "new code")
+	return render_template('scan.html')
+
+
 if __name__ == "__main__":
-	app.run(debug=True)
+	app.run(host="0.0.0.0", debug=True)
 

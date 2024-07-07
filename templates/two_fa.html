@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Table Page{% endblock %}
+{% block title %}2FA{% endblock %}
 
 {% block content %}
 <h2 class="get_codes">2FA Codes.</h2>
@@ -10,6 +10,8 @@
   
     
   </div>
+
+  <a class="btn btn-outline-success" role="button" href="{{ url_for('qr') }}"> Scan QR Code </a>    
 
 <table>
     <table class="table">
@@ -36,6 +38,7 @@
 
 
 </table>
+
 
 
 {% endblock %}
