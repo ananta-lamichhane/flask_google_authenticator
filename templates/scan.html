@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        #qr-reader {
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+        }
+        #qr-result {
+            margin-top: 20px;
+            text-align: center;
+        }
+        #scan-again-btn {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>QR Code Scanner</h1>
+    <div id="qr-reader">
+        <canvas id="qr-canvas" width="300" height="300" style="border: 1px solid gray"></canvas>
+    </div>
+    <div id="qr-result">No QR code detected</div>
+    <button id="scan-again-btn" onclick="startScanning()">Scan Again</button>
+
+    <script>
+        const video = document.createElement('video');
+        const canvasElement = document.getElementById('qr-canvas');
+        const canvas = canvasElement.getContext('2d');
+        let scanning = true; // Flag to control scanning state
+
+        function drawLine(begin, end, color) {
+            canvas.beginPath();
+            canvas.moveTo(begin.x, begin.y);
+            canvas.lineTo(end.x, end.y);
+            canvas.lineWidth = 4;
+            canvas.strokeStyle = color;
+            canvas.stroke();
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(function(stream) {
+            video.srcObject = stream;
+            video.setAttribute('playsinline', true);
+            video.play();
+            requestAnimationFrame(tick);
+        });
+
+        function tick() {
+            if (scanning && video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvasElement.height = video.videoHeight;
+                canvasElement.width = video.videoWidth;
+                canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+                const imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert',
+                });
+                if (code) {
+                    scanning = false; // Stop scanning after first detection
+                    drawLine(code.location.topLeftCorner, code.location.topRightCorner, '#FF3B58');
+                    drawLine(code.location.topRightCorner, code.location.bottomRightCorner, '#FF3B58');
+                    drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, '#FF3B58');
+                    drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, '#FF3B58');
+                    document.getElementById('qr-result').innerText = `QR Code detected: ${code.data}`;
+                    document.getElementById('scan-again-btn').style.display = 'block';
+                    sendQRCodeData(code.data); // Send decoded QR code data to backend
+                } else {
+                    document.getElementById('qr-result').innerText = 'No QR code detected';
+                }
+            }
+            requestAnimationFrame(tick);
+        }
+
+        function startScanning() {
+            scanning = true; // Allow scanning to start again
+            document.getElementById('qr-result').innerText = 'No QR code detected';
+            document.getElementById('scan-again-btn').style.display = 'none';
+        }
+
+        function sendQRCodeData(data) {
+            // Send the data using Axios (you can also use native fetch API)
+            axios.post('/qr', {
+                qr_data: data
+            })
+            .then(function (response) {
+                console.log(response.data);
+                // Handle response if needed
+            })
+            .catch(function (error) {
+                console.error('Error sending QR code data:', error);
+                // Handle error if needed
+            });
+        }
+    </script>
+</body>
+</html>
